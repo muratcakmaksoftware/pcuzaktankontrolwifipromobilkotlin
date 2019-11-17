@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="10dp"
+    >
+
+   <ScrollView
+       android:layout_width="match_parent"
+       android:layout_height="match_parent">
+
+       <LinearLayout
+           android:layout_width="match_parent"
+           android:layout_height="wrap_content"
+           android:orientation="vertical"
+           >
+
+            <EditText
+                android:id="@+id/edtUrl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:ems="10"
+                android:textSize="16dp"
+                android:inputType="text"
+                android:hint="Ör: www.youtube.com/watch?v=Sv6dMFF_yts" />
+
+           <Switch
+               android:id="@+id/swhTarayiDurum"
+               android:layout_width="match_parent"
+               android:layout_height="30dp"
+               android:textColor="@color/colorPrimary"
+               android:text="Açık Tarayıcılar Kapansın Mı ?" />
+
+           <Button
+               android:layout_marginTop="10dp"
+               android:id="@+id/btnTarayiciAc"
+               android:layout_width="match_parent"
+               android:layout_height="wrap_content"
+               android:text="TARAYICIYA GÖNDER"
+               android:background="@color/colorButton"
+               android:textColor="@color/colorButtonText"
+               />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="30dp"
+                >
+                <ImageButton
+                    android:id="@+id/imgBtnOnceki"
+                    android:layout_width="0dp"
+                    android:layout_weight="0.25"
+                    android:layout_height="70dp"
+                    android:src="@drawable/mediaprevious"
+                    android:scaleType="fitCenter"
+                    android:background="#00000000" />
+                <ImageButton
+                    android:id="@+id/imgBtnBslt"
+                    android:layout_width="0dp"
+                    android:layout_weight="0.25"
+                    android:layout_height="70dp"
+                    android:src="@drawable/mediaply"
+                    android:scaleType="fitCenter"
+                    android:background="#00000000" />
+
+                <ImageButton
+                    android:id="@+id/imgBtnDurdur"
+                    android:layout_width="0dp"
+                    android:layout_weight="0.25"
+                    android:layout_height="70dp"
+                    android:src="@drawable/mediastop"
+                    android:scaleType="fitCenter"
+                    android:background="#00000000" />
+
+                <ImageButton
+                    android:id="@+id/imgBtnSonraki"
+                    android:layout_width="0dp"
+                    android:layout_weight="0.25"
+                    android:layout_height="70dp"
+                    android:src="@drawable/medianext"
+                    android:scaleType="fitCenter"
+                    android:background="#00000000" />
+
+            </LinearLayout>
+
+           <LinearLayout
+               android:layout_width="match_parent"
+               android:layout_height="wrap_content"
+               android:orientation="horizontal"
+               android:layout_marginTop="20dp"
+               >
+
+               <TextView
+                   android:id="@+id/txtPlyrSes"
+                   android:layout_width="0dp"
+                   android:layout_weight="0.2"
+                   android:layout_height="70dp"
+                   android:textSize="26dp"
+                   android:textAlignment="center"
+                   android:gravity="center"
+                   android:text="100" />
+
+               <SeekBar
+                   android:layout_width="0dp"
+                   android:layout_weight="0.8"
+                   android:layout_height="70dp"
+                   android:id="@+id/skBarPlyrSes"
+                   android:max="100"
+                   />
+           </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="20dp"
+                >
+                <ImageButton
+                    android:id="@+id/imgBtnSesAzalt"
+                    android:layout_width="0dp"
+                    android:layout_height="70dp"
+                    android:layout_weight="0.33"
+                    android:background="#00000000"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/mediavolumedown" />
+
+                <ImageButton
+                    android:id="@+id/imgBtnSesKnt"
+                    android:layout_width="0dp"
+                    android:layout_weight="0.33"
+                    android:layout_height="70dp"
+                    android:src="@drawable/mediavolumemute"
+                    android:scaleType="fitCenter"
+                    android:background="#00000000" />
+
+                <ImageButton
+                    android:id="@+id/imgBtnSesCogalt"
+                    android:layout_width="0dp"
+                    android:layout_weight="0.33"
+                    android:layout_height="70dp"
+                    android:src="@drawable/mediavolumeup"
+                    android:scaleType="fitCenter"
+                    android:background="#00000000" />
+
+            </LinearLayout>
+
+       </LinearLayout>
+   </ScrollView>
+</LinearLayout>
