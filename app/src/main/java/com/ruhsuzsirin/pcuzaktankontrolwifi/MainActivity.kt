@@ -21,7 +21,10 @@ import android.text.format.Formatter
 //Arkaplan işlemi için gerekli kitap
 import android.os.AsyncTask
 import android.util.Log
-
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Socket
+import kotlin.concurrent.thread
 
 //Bağlı olduğum networkdeki diğer aktif cihazları bulmak için gerekli kitap
 import java.net.InetAddress
@@ -35,28 +38,63 @@ import android.app.ProgressDialog
 import android.Manifest
 import android.content.Intent
 import android.os.Build
-import android.os.Handler
 import android.widget.*
 
 //List için
 import android.widget.ArrayAdapter
-import java.io.IOException
-import java.io.OutputStream
-import java.net.InetSocketAddress
-import java.net.Socket
-import java.nio.charset.Charset
-import java.util.*
-import kotlin.concurrent.thread
 
+
+//Veritabanı
+import io.realm.Realm
+import com.ruhsuzsirin.pcuzaktankontrolwifi.tables.AyarTablo
 
 class MainActivity : AppCompatActivity() {
 
     private val PermissionsRequestCode = 123
     private lateinit var managePermissions: ManagePermissions
 
+    lateinit var mRealm: Realm;
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        //VERİTABANI
+        //Realm.init(applicationContext);
+        mRealm = Realm.getDefaultInstance();
+
+        /*Tüm verileri çekmeye örnek:
+        val genelTabloData = mRealm.where(GenelTablo::class.java).findAll()
+        if(genelTabloData.count() > 0){
+            genelTabloData.forEach {
+                edtIpAdres.setText(it.ip)
+                edtPort.setText(it.port);
+            }
+        }*/
+        val ayarTabloFirstData = mRealm.where(AyarTablo::class.java).findFirst()
+        if(ayarTabloFirstData != null){
+            edtIpAdres.setText(ayarTabloFirstData.ip)
+            edtPort.setText(ayarTabloFirstData.port);
+        }
+        else{
+            mRealm.executeTransactionAsync(object:Realm.Transaction {
+                override fun execute(bgRealm:Realm) {
+                    //primary key için otomatik arttırma
+                    val maxId = bgRealm.where(AyarTablo::class.java).max("id")
+                    val nextId = if ((maxId == null)) 1 else maxId.toInt() + 1
+                    val ayarTabloFirstData = bgRealm.createObject(AyarTablo::class.java, nextId)
+                    ayarTabloFirstData.ip = ""
+                    ayarTabloFirstData.port = "5000"
+                    //Eklendi!
+                }
+            }, object:Realm.Transaction.OnSuccess{
+                override fun onSuccess() {
+                    Log.d("VERITABANI", "VERITABANI OLUŞTURULDU!");
+                }
+            }, object:Realm.Transaction.OnError {
+                override fun onError(error:Throwable) {
+                    Toast.makeText(applicationContext, "Başlangıç Veritabanı Ekleme Hatası!", Toast.LENGTH_SHORT).show()
+                }
+            })
+        }
 
         /*val btnSearch = findViewById<Button>(R.id.btnSearch);
         val prgBar = findViewById<ProgressBar>(R.id.prgBar);*/
@@ -69,7 +107,8 @@ class MainActivity : AppCompatActivity() {
         val list = listOf<String>(
             Manifest.permission.ACCESS_NETWORK_STATE,
             Manifest.permission.ACCESS_WIFI_STATE,
-            Manifest.permission.INTERNET
+            Manifest.permission.INTERNET,
+            Manifest.permission.WAKE_LOCK
         )
 
         managePermissions = ManagePermissions(this,list,PermissionsRequestCode)
@@ -128,6 +167,26 @@ class MainActivity : AppCompatActivity() {
 
                                 this@MainActivity.runOnUiThread(java.lang.Runnable {
                                     Toast.makeText(this,"Bağlandı: IP:"+edtIpAdres.text.toString(), Toast.LENGTH_SHORT).show();
+
+                                    //Bağlanılan ip güncelleme
+                                    mRealm.executeTransactionAsync(object:Realm.Transaction {
+                                        override fun execute(bgRealm:Realm) {
+                                            var ilkVeriyiGuncelleme = AyarTablo();
+                                            ilkVeriyiGuncelleme.id = 1;
+                                            ilkVeriyiGuncelleme.ip = edtIpAdres.text.toString();
+                                            ilkVeriyiGuncelleme.port = edtPort.text.toString();
+                                            bgRealm.insertOrUpdate(ilkVeriyiGuncelleme)
+                                        }
+                                    }, object:Realm.Transaction.OnSuccess{
+                                        override fun onSuccess() {
+                                            //Toast.makeText(applicationContext, "Veritabanı oluşturuldu!", Toast.LENGTH_SHORT).show()
+                                            Log.d("AYARLAR", "AYARLAR GÜNCELLENDİ!");
+                                        }
+                                    }, object:Realm.Transaction.OnError {
+                                        override fun onError(error:Throwable) {
+                                            Log.d("AYARLAR", "GÜNCELLEME BAŞARISIZ");
+                                        }
+                                    });
                                 })
 
                                 val intent = Intent(this, islemler::class.java)

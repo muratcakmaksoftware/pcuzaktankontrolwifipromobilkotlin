@@ -1,15 +1,13 @@
 package com.ruhsuzsirin.pcuzaktankontrolwifi
 
 
+import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.content.Context
-import android.content.DialogInterface
+import android.content.*
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.text.Editable
 import android.text.InputFilter
 import android.text.Spanned
-import android.text.TextWatcher
 import android.util.Log
 import android.view.*
 import kotlinx.android.synthetic.main.activity_islemler.*
@@ -25,18 +23,10 @@ import java.io.IOException
 //AlertDialog İçin Gerekli Kitaplar
 import android.widget.*
 import android.view.inputmethod.EditorInfo
-import androidx.fragment.app.Fragment
 import android.widget.EditText
-import android.widget.RelativeLayout
-import android.graphics.BitmapFactory
-import android.graphics.Bitmap
 import android.view.MotionEvent
 import android.view.View.OnTouchListener
-import androidx.core.app.ComponentActivity.ExtraData
-import androidx.core.content.ContextCompat.getSystemService
-import android.icu.lang.UCharacter.GraphemeClusterBreak.T
 import android.os.Handler
-import android.view.inputmethod.InputMethodManager
 
 
 class islemler : AppCompatActivity() {
@@ -47,20 +37,40 @@ class islemler : AppCompatActivity() {
 
     var txtSes:TextView? = null;
     var skBarSes:SeekBar? = null;
-    var bilgisayarSesi:Int = 0;
+    //var bilgisayarSesi:Int = 0;
+    companion object { // static //örnek kaynak :https://medium.com/@dbottillo/kotlin-and-static-not-as-easy-as-java-5f9b5b89b683
+        var bilgisayarSesi = 0; //@JvmStatic
+    }
 
     var txtPlyrSes:TextView? = null
     var skBarPlyrSes:SeekBar? = null
     var fragmentAktif = false;
+
+    //@SuppressLint("InvalidWakeLockTag") //wakelock için gereklidir.
+    override fun onResume() {
+        super.onResume()
+        /*val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,"MyWakelockTag");
+        wakeLock!!.acquire()*/
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            unregisterReceiver(myReceiver);
+        }
+
+        /*if(wakeLock != null)
+            wakeLock!!.release();*/
+
+    }
+
+    var myReceiver: BroadcastReceiver? = null;
+    //var wakeLock:PowerManager.WakeLock? = null; // ÖRNEK Activity kullanımı !
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_islemler);
-
-        val actionbar = supportActionBar;
-        if (actionbar != null) {
-            actionbar.setDisplayHomeAsUpEnabled(true)
-        };
-
+        //window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); // bu flag sadece ekranın kapanmaması sağlar. // veya xml için kullanım:  android:keepScreenOn="true"
 
         val DEBUG_TAG:String = "ISLEM";
         val bundle = intent.extras;
@@ -75,16 +85,40 @@ class islemler : AppCompatActivity() {
 
             }
         }
+        else{
+            finish()
+        }
 
-        actionbar!!.title = "İşlemler: "+ip;
+        // Arka plan ses çalışması için API 21+ yani Version 5.0 lolipop eşit veya üstü olması gerekiyor. Bunu kontrol ile ekleyebiliriz.
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            val filter = IntentFilter();
+            filter.addAction(Intent.ACTION_SCREEN_OFF); //ekran kapatıldığında yani kilitlendiğinde receiver gelecek event ile yapılacak işlemleri için gereklidir.
+            filter.addAction(Intent.ACTION_SCREEN_ON); // ekran açıldığında receiver gelecek event ile yapılacak işlemleri için gereklidir.
+            //filter.addAction("android.media.VOLUME_CHANGED_ACTION"); // volume up - down çalışır ancak %0 veya %100  olduğunda telefondaki değer daha tetiklenmez kısaca işe yaramaz.
+            filter.addAction("my.action.mydata");
+            myReceiver = MyBroadCastReciever(); // Telefon iç-dış olayları yakalayıp işler yapmak için gereklidir. // daha iyi bilgi için kaynak : https://medium.com/kouosl/kotlin-andorid-broadcast-receiver-kullan%C4%B1m%C4%B1-302597473f4c
+            registerReceiver(myReceiver, filter) //Receiver çalıştırılması !
+
+            val myIntent = Intent("my.action.mydata"); // sinyal gönderip bilgileri reciever da almak için.
+            myIntent.putExtra("ip", ip);
+            myIntent.putExtra("port", port);
+            sendBroadcast(myIntent);// sinyali gönderme.
+        }
 
         serveriOku(); //Bilgileri güncellemek için server bize sistem hakkında bilgi verecek.
+
+        //Back button açmak için
+        val actionbar = supportActionBar;
+        if (actionbar != null) {
+            actionbar.setDisplayHomeAsUpEnabled(true)
+        };
+
+        actionbar!!.title = "İşlemler: "+ip;
 
         // ###############  SES ###############
 
         imgBtnSes.setOnClickListener(View.OnClickListener {
             val DEBUG_TAG:String = "SESCNT";
-
             val dialogBuilder = AlertDialog.Builder(this@islemler);
             var alertDialogSes:AlertDialog? = null;
 
@@ -143,14 +177,6 @@ class islemler : AppCompatActivity() {
                 }
             });
 
-            //Dialog buton atamak için
-            /*dialogBuilder.setNegativeButton("TAMAM"){dialog,which ->
-                alertDialogSes!!.dismiss();
-            }*/
-            /*dialogBuilder.setPositiveButton("EVET"){dialog, which ->
-            }*/
-            //alertDialogSes.setCancelable(false); //sadece buton ile çıkış yapabilir.
-
             alertDialogSes = dialogBuilder.create();
             alertDialogSes!!.show();
 
@@ -162,55 +188,53 @@ class islemler : AppCompatActivity() {
         imgBtnPlayer.setOnClickListener(View.OnClickListener {
             val DEBUG_TAG:String = "PLAYER";
 
-            val dialogBuilder = AlertDialog.Builder(this@islemler);
-            var alertDialogPlayer:AlertDialog? = null;
-
             val inflater = this.layoutInflater;
-            val dialogView = inflater.inflate(R.layout.player, null);
-            dialogBuilder.setView(dialogView);
-            dialogBuilder.setOnKeyListener { v, keyCode, event ->
+            val fragmentView = inflater.inflate(R.layout.player, null);
+            frameLayout.addView(fragmentView);
+            scrollViewMenu.visibility = View.GONE;
+            frameLayout.visibility = View.VISIBLE;
+            fragmentAktif = true;
+            servereGonder("sesBilgiAl", "");
+            frameLayout.isFocusableInTouchMode = true
+            frameLayout.requestFocus()
 
+            frameLayout.setOnKeyListener(View.OnKeyListener { v, keyCode, event ->
                 if (event.keyCode == KeyEvent.KEYCODE_VOLUME_UP) {
-                    if(alertDialogPlayer != null){
-                        if(alertDialogPlayer!!.isShowing){
-                            val sesDzyCglt = skBarPlyrSes!!.progress + 1;
-                            if(sesDzyCglt > 100){ // 100 degerini aştıysa
-                                skBarPlyrSes!!.setProgress(100);
-                            }
-                            skBarPlyrSes!!.setProgress(sesDzyCglt);
-                        }
+                    val sesDzyCglt = skBarPlyrSes!!.progress + 1;
+                    if(sesDzyCglt > 100){ // 100 degerini aştıysa
+                        skBarPlyrSes!!.setProgress(100);
                     }
+                    skBarPlyrSes!!.setProgress(sesDzyCglt);
                     true;
                 }
                 else if (event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) {
-                    if(alertDialogPlayer != null){
-                        if(alertDialogPlayer!!.isShowing){
-                            val sesDzyAzlt = skBarPlyrSes!!.progress - 1;
-                            if(0 > sesDzyAzlt){ // eksilere gittiyse
-                                skBarPlyrSes!!.setProgress(0);
-                            }
-                            skBarPlyrSes!!.setProgress(sesDzyAzlt);
-                        }
+                    val sesDzyAzlt = skBarPlyrSes!!.progress - 1;
+                    if(0 > sesDzyAzlt){ // eksilere gittiyse
+                        skBarPlyrSes!!.setProgress(0);
                     }
+                    skBarPlyrSes!!.setProgress(sesDzyAzlt);
                     true;
                 }
+                else if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                    frameLayout.removeAllViews();
+                    true;
+                }
+                false
+            })
 
-                true
-            }
+            val btnTarayiciAc = frameLayout.findViewById(R.id.btnTarayiciAc) as Button
+            val edtUrl = frameLayout.findViewById(R.id.edtUrl) as EditText
+            val swhTarayiDurum = frameLayout.findViewById(R.id.swhTarayiDurum) as Switch
+            val imgBtnSesKnt = frameLayout.findViewById(R.id.imgBtnSesKnt) as ImageButton
+            val imgBtnSesAzalt = frameLayout.findViewById(R.id.imgBtnSesAzalt) as ImageButton
+            val imgBtnSesCogalt = frameLayout.findViewById(R.id.imgBtnSesCogalt) as ImageButton
+            val imgBtnDurdur  = frameLayout.findViewById(R.id.imgBtnDurdur) as ImageButton
+            val imgBtnBslt  = frameLayout.findViewById(R.id.imgBtnBslt) as ImageButton
+            val imgBtnOnceki  = frameLayout.findViewById(R.id.imgBtnOnceki) as ImageButton
+            val imgBtnSonraki  = frameLayout.findViewById(R.id.imgBtnSonraki) as ImageButton
 
-            val btnTarayiciAc = dialogView.findViewById(R.id.btnTarayiciAc) as Button
-            val edtUrl = dialogView.findViewById(R.id.edtUrl) as EditText
-            val swhTarayiDurum = dialogView.findViewById(R.id.swhTarayiDurum) as Switch
-            val imgBtnSesKnt = dialogView.findViewById(R.id.imgBtnSesKnt) as ImageButton
-            val imgBtnSesAzalt = dialogView.findViewById(R.id.imgBtnSesAzalt) as ImageButton
-            val imgBtnSesCogalt = dialogView.findViewById(R.id.imgBtnSesCogalt) as ImageButton
-            val imgBtnDurdur  = dialogView.findViewById(R.id.imgBtnDurdur) as ImageButton
-            val imgBtnBslt  = dialogView.findViewById(R.id.imgBtnBslt) as ImageButton
-            val imgBtnOnceki  = dialogView.findViewById(R.id.imgBtnOnceki) as ImageButton
-            val imgBtnSonraki  = dialogView.findViewById(R.id.imgBtnSonraki) as ImageButton
-
-            txtPlyrSes = dialogView.findViewById(R.id.txtPlyrSes) as TextView
-            skBarPlyrSes = dialogView.findViewById(R.id.skBarPlyrSes) as SeekBar
+            txtPlyrSes = frameLayout.findViewById(R.id.txtPlyrSes) as TextView
+            skBarPlyrSes = frameLayout.findViewById(R.id.skBarPlyrSes) as SeekBar
 
             skBarPlyrSes!!.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onProgressChanged(seekBar: SeekBar, i: Int, b: Boolean) {
@@ -283,14 +307,6 @@ class islemler : AppCompatActivity() {
             imgBtnSonraki.setOnClickListener(View.OnClickListener {
                 servereGonder("playerSonraki", "");
             });
-            //Dialog buton atamak için
-            dialogBuilder.setNegativeButton("TAMAM"){dialog,which ->
-                alertDialogPlayer!!.dismiss();
-            }
-
-            alertDialogPlayer = dialogBuilder.create();
-            alertDialogPlayer!!.setCancelable(false); //sadece buton ile çıkış yapabilir.
-            alertDialogPlayer!!.show();
 
             servereGonder("sesBilgiAl", ""); //bilgisayarSesi değişkenini günceller.
 
@@ -325,6 +341,10 @@ class islemler : AppCompatActivity() {
                         bilgisayarSesi = 0;
                     }
                     servereGonder("ses", bilgisayarSesi.toString());
+                    true;
+                }
+                else if (event.keyCode == KeyEvent.KEYCODE_BACK) {
+                    frameLayout.removeAllViews();
                     true;
                 }
                 false
@@ -668,8 +688,8 @@ class islemler : AppCompatActivity() {
                 fragmentdenCik();
                 return false;
             }
-
         }
+
         return super.onKeyDown(keyCode, event);
     }
 
@@ -691,3 +711,4 @@ class islemler : AppCompatActivity() {
     }
 
 }
+
