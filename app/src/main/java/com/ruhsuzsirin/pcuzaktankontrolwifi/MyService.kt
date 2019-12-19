@@ -64,7 +64,7 @@ class MyService: Service() {
                 //-1 = volume down, 1 = volume up, 0  = volume button released
                 if(direction == 1){
                     //toast("volume up")
-                    islemler.bilgisayarSesi = islemler.bilgisayarSesi + 1;
+                    islemler.bilgisayarSesi = islemler.bilgisayarSesi + 2;
                     if(islemler.bilgisayarSesi > 100){ // 100 degerini aştıysa
                         islemler.bilgisayarSesi = 100
                     }
@@ -72,8 +72,8 @@ class MyService: Service() {
                 }
                 else if(direction == -1){
                     //toast("volume down")
-                    islemler.bilgisayarSesi = islemler.bilgisayarSesi - 1;
-                    if(0 > islemler.bilgisayarSesi ){ // eksilere gittiyse
+                    islemler.bilgisayarSesi = islemler.bilgisayarSesi - 2;
+                    if(0 > islemler.bilgisayarSesi){ // eksilere gittiyse
                         islemler.bilgisayarSesi = 0
                     }
                     servereGonder("ses", islemler.bilgisayarSesi.toString());

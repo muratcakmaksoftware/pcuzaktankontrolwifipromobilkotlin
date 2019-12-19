@@ -4,6 +4,9 @@ package com.ruhsuzsirin.pcuzaktankontrolwifi
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.*
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.text.InputFilter
@@ -27,12 +30,18 @@ import android.widget.EditText
 import android.view.MotionEvent
 import android.view.View.OnTouchListener
 import android.os.Handler
+import android.os.Build
+import android.provider.MediaStore
+import java.net.InetAddress
+import java.nio.ByteBuffer
+import java.util.*
 
 
 class islemler : AppCompatActivity() {
 
     var ip = "";
     var port = "";
+    var sesPortu = "";
     var clientip = "";
 
     var txtSes:TextView? = null;
@@ -56,9 +65,10 @@ class islemler : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             unregisterReceiver(myReceiver);
         }
+        socketiKapat()
 
         /*if(wakeLock != null)
             wakeLock!!.release();*/
@@ -70,6 +80,7 @@ class islemler : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_islemler);
+
         //window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); // bu flag sadece ekranın kapanmaması sağlar. // veya xml için kullanım:  android:keepScreenOn="true"
 
         val DEBUG_TAG:String = "ISLEM";
@@ -90,7 +101,7 @@ class islemler : AppCompatActivity() {
         }
 
         // Arka plan ses çalışması için API 21+ yani Version 5.0 lolipop eşit veya üstü olması gerekiyor. Bunu kontrol ile ekleyebiliriz.
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val filter = IntentFilter();
             filter.addAction(Intent.ACTION_SCREEN_OFF); //ekran kapatıldığında yani kilitlendiğinde receiver gelecek event ile yapılacak işlemleri için gereklidir.
             filter.addAction(Intent.ACTION_SCREEN_ON); // ekran açıldığında receiver gelecek event ile yapılacak işlemleri için gereklidir.
@@ -233,6 +244,28 @@ class islemler : AppCompatActivity() {
             val imgBtnOnceki  = frameLayout.findViewById(R.id.imgBtnOnceki) as ImageButton
             val imgBtnSonraki  = frameLayout.findViewById(R.id.imgBtnSonraki) as ImageButton
 
+            val btnPcSesDinle  = frameLayout.findViewById(R.id.btnPcSesDinle) as Button
+            val btnPcSesDurdur  = frameLayout.findViewById(R.id.btnPcSesDurdur) as Button
+
+            btnPcSesDinle.setOnClickListener(View.OnClickListener {
+                servereGonder("bilgisayarSesleriniGonder", "");
+                if(!thSvSesOkuRunning){
+                    thSvSesOkuRunning = true;
+                    serverSesOku();
+                    toast("Dinleme Başlatıldı!");
+                }
+                else{
+                    toast("Zaten Dinliyorsunuz!");
+                }
+
+            });
+
+            btnPcSesDurdur.setOnClickListener(View.OnClickListener {
+                servereGonder("bilgisayarSesleriniDurdur", "");
+                sesOkuSocketKpt();
+                toast("Dinleme Durduruldu!");
+            });
+
             txtPlyrSes = frameLayout.findViewById(R.id.txtPlyrSes) as TextView
             skBarPlyrSes = frameLayout.findViewById(R.id.skBarPlyrSes) as SeekBar
 
@@ -252,9 +285,11 @@ class islemler : AppCompatActivity() {
             btnTarayiciAc.setOnClickListener(View.OnClickListener {
                 if(swhTarayiDurum.isChecked){
                     servereGonder("tarayici", edtUrl.text.toString()+ " tarayicikpt");
+                    toast("Gönderildi!");
                 }
                 else{
                     servereGonder("tarayici", edtUrl.text.toString());
+                    toast("Gönderildi!");
                 }
 
             });
@@ -309,6 +344,7 @@ class islemler : AppCompatActivity() {
             });
 
             servereGonder("sesBilgiAl", ""); //bilgisayarSesi değişkenini günceller.
+            servereGonder("sesPortuBilgi", ""); //ses port bilgisini güncelleme
 
         });
 
@@ -638,7 +674,54 @@ class islemler : AppCompatActivity() {
 
                             });
                         }
+                        else if(gelen.indexOf("sesPortu=") != -1){
+                            sesPortu = gelen.replace("sesPortu=", "");
+                        }
 
+
+                    }
+                }
+
+            }
+            catch (e: IOException) {
+                Log.d(DEBUG_TAG, "HATA: "+e.toString());
+            }
+        }
+
+
+    }
+
+    var thServerSesOku:Thread? = null;
+    var thSvSesOkuRunning = false;
+    var socketListenerSes:ServerSocket? = null;
+    var audioTrack:AudioTrack? = null;
+    fun serverSesOku(){
+        val DEBUG_TAG:String = "SERVERSESOKU"; // STREAM_VOICE_CALL
+        audioTrack = AudioTrack(AudioManager.STREAM_MUSIC,16000, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, 10000, AudioTrack.MODE_STREAM); //32bit 38400
+        audioTrack!!.play()
+        thServerSesOku = thread{
+            try{
+                socketListenerSes = ServerSocket(sesPortu.toInt());
+                socketListenerSes.use {
+                    while(thSvSesOkuRunning){
+                        val socket = socketListenerSes!!.accept();
+
+                        try{
+                            val readedBytes  = socket.getInputStream().readBytes();
+                            audioTrack!!.write(readedBytes, 0, readedBytes.size)
+                            //Log.d(DEBUG_TAG, "GELEN SES BYTE DİZİSİ: "+ Arrays.toString(readedBytes));
+                            //Log.d(DEBUG_TAG, "GELEN SES BYTE UZUNLUGU: "+ readedBytes.size);
+                        }
+                        catch(e: IOException){
+
+                        }
+                        /*val fb = ByteBuffer.wrap(readedBytes).asFloatBuffer() //32bit için
+                        val out = FloatArray(fb.capacity())
+                        fb.get(out)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                            audioTrack!!.write(out, 0, out.size, AudioTrack.WRITE_BLOCKING);
+                        }*/
+                        socket.close();
 
                     }
                 }
@@ -708,6 +791,33 @@ class islemler : AppCompatActivity() {
         }
 
 
+        sesOkuSocketKpt();
+
+    }
+
+    fun sesOkuSocketKpt(){
+        try{
+            if(audioTrack != null){
+                audioTrack!!.stop();
+            }
+
+            if(socketListenerSes != null){
+                socketListenerSes!!.close();
+                socketListenerSes = null;
+                thSvSesOkuRunning = false;
+
+                thServerSesOku!!.interrupt();
+                thServerSesOku = null;
+            }
+        }
+        catch(e: IOException)
+        {
+            Log.d("SOKETKPTSES", "HATA: "+e.toString());
+        }
+    }
+
+    fun toast(msg:String){
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
 }

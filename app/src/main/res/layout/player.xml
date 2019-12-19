@@ -146,6 +146,44 @@
 
             </LinearLayout>
 
+           <TextView
+               android:layout_marginTop="10dp"
+               android:id="@+id/txtSesPortuBilgi"
+               android:layout_width="match_parent"
+               android:layout_height="wrap_content"
+               android:textSize="21dp"
+               android:text="Bilgisayardaki Sesleri Dinleyin ?" />
+
+           <LinearLayout
+               android:layout_width="match_parent"
+               android:layout_height="wrap_content"
+               android:orientation="horizontal"
+               android:layout_marginTop="10dp"
+               >
+
+               <Button
+                   android:id="@+id/btnPcSesDinle"
+                   android:layout_width="0dp"
+                   android:layout_weight="0.50"
+                   android:layout_height="wrap_content"
+                   android:text="DİNLE"
+                   android:background="@color/colorButton"
+                   android:textColor="@color/colorButtonText"
+                   android:layout_marginRight="10dp"
+                   />
+
+               <Button
+                   android:id="@+id/btnPcSesDurdur"
+                   android:layout_width="0dp"
+                   android:layout_weight="0.50"
+                   android:layout_height="wrap_content"
+                   android:text="Durdur"
+                   android:background="@color/colorButton"
+                   android:textColor="@color/colorButtonText"
+
+                   />
+           </LinearLayout>
+
        </LinearLayout>
    </ScrollView>
 </LinearLayout>
