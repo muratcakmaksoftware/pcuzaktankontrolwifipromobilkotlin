@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Handler
 import android.os.IBinder
 import android.os.PowerManager
@@ -29,6 +30,8 @@ class MyService: Service() {
 
     val DEBUG_TAG = "MYSERVICE";
     var wakeLock:PowerManager.WakeLock? = null;
+    var localSesMax = 15;
+    var localSes = 5;
     @SuppressLint("InvalidWakeLockTag")
     override fun onCreate() {
         super.onCreate()
@@ -56,6 +59,14 @@ class MyService: Service() {
             implementation "com.android.support:support-media-compat:28.0.0"
         * */
 
+        //Media sessiondan bağımsızdır.
+        //Telefonun kendi ses bilgisini çoğaltıp azaltacak.
+        var audioManager = getApplicationContext().getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        localSesMax = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        localSes = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+        Log.d(DEBUG_TAG, "Ses MAX: "+localSesMax);
+        Log.d(DEBUG_TAG, "Şuan ki Ses: "+localSes);
+        //Media Session başlangıç
         mediaSession = MediaSessionCompat(this, "PlayerService")
         mediaSession.setFlags((MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS))
         mediaSession.setPlaybackState(PlaybackStateCompat.Builder().setState(PlaybackStateCompat.STATE_PLAYING, 0, 0F).build())
@@ -64,6 +75,14 @@ class MyService: Service() {
                 //-1 = volume down, 1 = volume up, 0  = volume button released
                 if(direction == 1){
                     //toast("volume up")
+                    //audioManager.adjustVolume(AudioManager.ADJUST_RAISE, AudioManager.FLAG_PLAY_SOUND); // Sanal olarak ses açma tuşuna bastırma // doğal olarak sınırsız döngüye neden oluyor.
+                    localSes += 1;
+                    if(localSes > localSesMax){
+                        localSes = localSesMax;
+                    }
+                    //Telefon Ses seviyesini kendimiz belirliyoruz.
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, localSes, 0);
+
                     islemler.bilgisayarSesi = islemler.bilgisayarSesi + 2;
                     if(islemler.bilgisayarSesi > 100){ // 100 degerini aştıysa
                         islemler.bilgisayarSesi = 100
@@ -72,6 +91,14 @@ class MyService: Service() {
                 }
                 else if(direction == -1){
                     //toast("volume down")
+                    //audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_PLAY_SOUND); // sanal olarak ses kapatma bastırma
+
+                    localSes -= 1;
+                    if(0 > localSes){
+                        localSes = 0;
+                    }
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, localSes, 0);
+
                     islemler.bilgisayarSesi = islemler.bilgisayarSesi - 2;
                     if(0 > islemler.bilgisayarSesi){ // eksilere gittiyse
                         islemler.bilgisayarSesi = 0
@@ -99,7 +126,7 @@ class MyService: Service() {
         Log.d(DEBUG_TAG, ip +" - "+ port + " - "+islemler.bilgisayarSesi.toString());
 
 
-        //############## ÖNEMLİ SERVISI UYKU MODUNA GIRDIRMEMEK İÇİN ##############
+        //############## ÖNEMLİ SERVISI UYKU MODUNA GEÇİRMEMEK İÇİN ##############
         //kaynak : https://stackoverflow.com/questions/48903548/background-service-going-to-sleep
         //Android bataryayı korumak için bir süre sonra her servisi uyku moduna geçirecek. Bu durumu önlemek için runAsForeground kullanıldı !
         runAsForeground();

@@ -43,6 +43,7 @@ class islemler : AppCompatActivity() {
     var port = "";
     var sesPortu = "";
     var clientip = "";
+    var sampleRate = "";
 
     var txtSes:TextView? = null;
     var skBarSes:SeekBar? = null;
@@ -345,6 +346,7 @@ class islemler : AppCompatActivity() {
 
             servereGonder("sesBilgiAl", ""); //bilgisayarSesi değişkenini günceller.
             servereGonder("sesPortuBilgi", ""); //ses port bilgisini güncelleme
+            servereGonder("sesSampleRateAl", ""); //Bilgisayarın Ses Örnekleme Hız bilgisini al.
 
         });
 
@@ -677,6 +679,10 @@ class islemler : AppCompatActivity() {
                         else if(gelen.indexOf("sesPortu=") != -1){
                             sesPortu = gelen.replace("sesPortu=", "");
                         }
+                        else if(gelen.indexOf("sesSampleRate=") != -1){
+                            sampleRate = gelen.replace("sesSampleRate=", "");
+                        }
+
 
 
                     }
@@ -697,7 +703,7 @@ class islemler : AppCompatActivity() {
     var audioTrack:AudioTrack? = null;
     fun serverSesOku(){
         val DEBUG_TAG:String = "SERVERSESOKU"; // STREAM_VOICE_CALL
-        audioTrack = AudioTrack(AudioManager.STREAM_MUSIC,16000, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, 10000, AudioTrack.MODE_STREAM); //32bit 38400
+        audioTrack = AudioTrack(AudioManager.STREAM_MUSIC,sampleRate.toInt(), AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_16BIT, 38400, AudioTrack.MODE_STREAM); //32bit buffersize 38400 max olarak belirledim.
         audioTrack!!.play()
         thServerSesOku = thread{
             try{
@@ -706,15 +712,10 @@ class islemler : AppCompatActivity() {
                     while(thSvSesOkuRunning){
                         val socket = socketListenerSes!!.accept();
 
-                        try{
-                            val readedBytes  = socket.getInputStream().readBytes();
-                            audioTrack!!.write(readedBytes, 0, readedBytes.size)
-                            //Log.d(DEBUG_TAG, "GELEN SES BYTE DİZİSİ: "+ Arrays.toString(readedBytes));
-                            //Log.d(DEBUG_TAG, "GELEN SES BYTE UZUNLUGU: "+ readedBytes.size);
-                        }
-                        catch(e: IOException){
+                        val readedBytes  = socket.getInputStream().readBytes();
+                        audioTrack!!.write(readedBytes, 0, readedBytes.size)
+                        //Log.d(DEBUG_TAG, "SES BYTE DİZİSİ "+readedBytes.size+" -> "+ Arrays.toString(readedBytes));
 
-                        }
                         /*val fb = ByteBuffer.wrap(readedBytes).asFloatBuffer() //32bit için
                         val out = FloatArray(fb.capacity())
                         fb.get(out)
